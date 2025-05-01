@@ -8,6 +8,7 @@ from BOT.handlers.metrics import metrics_handler
 from config.setting import Setting
 from BOT.handlers.bt_main import router as rt_main_menu
 from BOT.handlers.call_metrics import router as rt_call_bt
+from BOT.handlers.command import router as rt_command
 
 
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +31,7 @@ async def main():
 
     dp.include_router(rt_main_menu)
     dp.include_router(rt_call_bt)
+    dp.include_router(rt_command)
     
     try:
         await dp.start_polling(bot)
