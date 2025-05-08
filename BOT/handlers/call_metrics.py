@@ -2,10 +2,12 @@ from aiogram.types import CallbackQuery
 from aiogram import Router
 from aiogram.types import FSInputFile
 import os
+import asyncio
 
 from BOT.core.prometheus import PrometheusClient
 from BOT.core.graphing import create_metric_plot
 from config.setting import Setting
+from BOT.utils.temp_msg_def import send_temp_message
 
 
 router = Router()
@@ -15,17 +17,27 @@ async def handle_metric_callback(call: CallbackQuery, metric_name: str):
     user_id = call.from_user.id
     
     if user_id == int(Setting.USER_ID_1) or user_id == int(Setting.USER_ID_2):
-        prom = PrometheusClient(Setting.PROMETHEUS_URL)
-        metric_data = prom.get_metric(metric_name, "1h")
-        plot_file = create_metric_plot(metric_data, metric_name)
-        
-        photo = FSInputFile(plot_file)
-        await call.message.answer_photo(photo=photo, caption=f"Metric: {metric_name}")
-        
-        os.remove(plot_file)
-        await call.answer()
+        try:
+            prom = PrometheusClient(Setting.PROMETHEUS_URL)
+            metric_data = prom.get_metric(metric_name, "1h")
+            plot_file = create_metric_plot(metric_data, metric_name)
+            
+            photo = FSInputFile(plot_file)
+            message = await call.message.answer_photo(photo=photo, caption=f"Metric: {metric_name}")
+            
+            await asyncio.sleep(7)
+            try:
+                await message.delete()
+                os.remove(plot_file)
+            except Exception as e:
+                print(f"Не удалось удалить сообщение или файл: {e}")
+            
+            await call.answer()
+        except Exception as e:
+            await send_temp_message(call.message, f"Ошибка при получении метрики: {str(e)}", delete_after=10)
     else:
-        await call.answer("Послан", show_alert=True)
+        await call.answer("У вас нет прав для просмотра этой информации", show_alert=True)
+        await send_temp_message(call.message, "Попытка несанкционированного доступа", delete_after=5)
 
 
 @router.callback_query(lambda c: c.data == 'CPU_metrics')
